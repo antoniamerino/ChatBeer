@@ -1,2 +1,1 @@
-flask
-twilio
+python-telegram-bot==20.7

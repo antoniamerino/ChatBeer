@@ -21,7 +21,6 @@ for cerveza in cervezas:
     cerveza["color_normalizado"] = normalizar(cerveza.get("Color", ""))
 
 # Aplicar filtros sobre la base de datos
-
 def aplicar_filtros(filtros, universo):
     resultados = []
     for cerveza in universo:
@@ -30,25 +29,34 @@ def aplicar_filtros(filtros, universo):
     return sorted(resultados, key=lambda x: int(x["Nota"]) if str(x["Nota"]).isdigit() else 0, reverse=True)
 
 # Mostrar todos los detalles de las cervezas encontradas
-
 def mostrar_detalle(cervezas):
     texto = ""
     for cerveza in cervezas:
         texto += (
-            f"🍺 {cerveza['nombre']} ({cerveza['Tipo']})\n"
-            f"- Aroma: {cerveza['Aroma (Escala)']} | Sabor: {cerveza['Sabor (Escala)']}\n"
-            f"- Amargor: {cerveza['Amargor (Escala)']} | Cuerpo: {cerveza['Cuerpo (Escala)']}\n"
-            f"- Alcohol: {cerveza['Alcohol']}% | Frutal: {'Sí' if cerveza['Frutal'] == 1 else 'No'}\n"
-            f"- Nota Diego: {cerveza['Nota']}\n"
-            f"- Comentario: {cerveza['Comentarios']}\n\n"
+            f"🍺 {cerveza.get('nombre', '-') } ({cerveza.get('Tipo', '-')})\n"
+            f"- Cervecería: {cerveza.get('cerveceria', '-')}\n"
+            f"- País: {cerveza.get('Pais Origen', '-')} | Región: {cerveza.get('Region Origen', '-')}\n"
+            f"- Color: {cerveza.get('Color', '-')} | Espuma: {cerveza.get('Espuma (Estandarizada)', '-')}\n"
+            f"- Aroma: {cerveza.get('Aroma (Escala)', '-')} | Sabor: {cerveza.get('Sabor (Escala)', '-')}\n"
+            f"- Amargor: {cerveza.get('Amargor (Escala)', '-')} | Cuerpo: {cerveza.get('Cuerpo (Escala)', '-')}\n"
+            f"- Alcohol: {cerveza.get('Alcohol', '-') if cerveza.get('Alcohol') is not None else '-'}% | Carbonatación: {cerveza.get('Carbonatación', '-')}\n"
+            f"- Frutal: {'Sí' if cerveza.get('Frutal', 0) == 1 else 'No'}\n"
+            f"- Nota Diego: {cerveza.get('Nota', '-')}\n"
+            f"- Comentario: {cerveza.get('Comentarios', '-')}\n\n"
         )
     return texto.strip()
 
 # Manejo del flujo de conversación con estados
-
 def responder(mensaje, sesion):
     universo = cervezas.copy()
     condiciones = []
+
+    # Salida inmediata si detecta despedida
+    despedidas = ["adios", "adiós", "chao", "hasta luego", "nos vemos"]
+    if any(despedida in mensaje.lower() for despedida in despedidas):
+        sesion.clear()
+        sesion["estado"] = "inicio"
+        return "¡Hasta la próxima cata! 🍻"
 
     filtros_validos = {
         "nombre", "cerveceria", "pais", "region", "tipo", "color", "espuma",
@@ -57,7 +65,8 @@ def responder(mensaje, sesion):
 
     if sesion["estado"] == "inicio":
         sesion["estado"] = "esperando_filtros"
-        return "🍻 Bienvenido al bot cervecero de Diego.\n¿Por qué filtros te gustaría buscar cervezas? Puedes decir por ejemplo: aroma, sabor, país, tipo, nombre, etc."
+        todos = ", ".join(sorted(filtros_validos))
+        return f"🍻 Bienvenido al bot cervecero de Diego.\n¿Por qué filtros te gustaría buscar cervezas?\nPuedes elegir uno o más de estos filtros: {todos}"
 
     elif sesion["estado"] == "esperando_filtros":
         campos = mensaje.replace(" y ", ",")
@@ -70,7 +79,7 @@ def responder(mensaje, sesion):
             if campo in filtros_validos:
                 sesion["campos_filtrables"].append(campo)
             else:
-                return f"⚠️ El filtro '{campo}' no existe o está mal escrito.\n\n¿Puedes intentarlo de nuevo?\nEjemplo: sabor, aroma, país, frutal..."
+                return f"⚠️ El filtro '{campo}' no existe o está mal escrito.\n\nPor favor intenta de nuevo indicando filtros válidos como: nombre, tipo, país, sabor, etc."
 
         if not sesion["campos_filtrables"]:
             return "😅 No se especificaron filtros válidos. Intenta con: nombre, tipo, país, sabor, etc."
@@ -115,7 +124,7 @@ def responder(mensaje, sesion):
                     condiciones.append(lambda c, v=valor: v == normalizar(c["Cuerpo (Escala)"]))
                 elif campo == "alcohol":
                     try:
-                        condiciones.append(lambda c, a=float(valor): float(c["Alcohol"]) >= a)
+                        condiciones.append(lambda c, a=float(valor): float(c["Alcohol"]) >= a if c.get("Alcohol") else False)
                     except:
                         return "🚫 El valor de alcohol debe ser un número. Intenta de nuevo con algo como '5.5'."
                 elif campo == "carbonatacion":

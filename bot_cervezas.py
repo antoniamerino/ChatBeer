@@ -7,9 +7,11 @@ def normalizar(texto):
     texto = texto.lower()
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
 
+# Cargar la base de datos de cervezas
 with open("cervezas_estandarizadas.json", "r", encoding="utf-8") as f:
     cervezas = json.load(f)
 
+# Agregar campos normalizados para facilitar comparaciones
 for cerveza in cervezas:
     cerveza["nombre_normalizado"] = normalizar(cerveza["nombre"])
     cerveza["cerveceria_normalizado"] = normalizar(cerveza["cerveceria"])
@@ -18,12 +20,16 @@ for cerveza in cervezas:
     cerveza["tipo_normalizado"] = normalizar(cerveza["Tipo"])
     cerveza["color_normalizado"] = normalizar(cerveza.get("Color", ""))
 
+# Aplicar filtros sobre la base de datos
+
 def aplicar_filtros(filtros, universo):
     resultados = []
     for cerveza in universo:
         if all(cond(cerveza) for cond in filtros):
             resultados.append(cerveza)
     return sorted(resultados, key=lambda x: int(x["Nota"]) if str(x["Nota"]).isdigit() else 0, reverse=True)
+
+# Mostrar todos los detalles de las cervezas encontradas
 
 def mostrar_detalle(cervezas):
     texto = ""
@@ -38,6 +44,8 @@ def mostrar_detalle(cervezas):
         )
     return texto.strip()
 
+# Manejo del flujo de conversación con estados
+
 def responder(mensaje, sesion):
     universo = cervezas.copy()
     condiciones = []
@@ -49,7 +57,7 @@ def responder(mensaje, sesion):
 
     if sesion["estado"] == "inicio":
         sesion["estado"] = "esperando_filtros"
-        return "🍻 Bienvenido al bot cervecero de Diego.\n¿Por qué filtros te gustaría buscar cervezas?\nPuedes decir por ejemplo: aroma, sabor, país, tipo, nombre, etc."
+        return "🍻 Bienvenido al bot cervecero de Diego.\n¿Por qué filtros te gustaría buscar cervezas? Puedes decir por ejemplo: aroma, sabor, país, tipo, nombre, etc."
 
     elif sesion["estado"] == "esperando_filtros":
         campos = mensaje.replace(" y ", ",")
@@ -109,7 +117,7 @@ def responder(mensaje, sesion):
                     try:
                         condiciones.append(lambda c, a=float(valor): float(c["Alcohol"]) >= a)
                     except:
-                        pass
+                        return "🚫 El valor de alcohol debe ser un número. Intenta de nuevo con algo como '5.5'."
                 elif campo == "carbonatacion":
                     condiciones.append(lambda c, v=valor: v in normalizar(c.get("Carbonatación", "")))
                 elif campo == "frutal":
